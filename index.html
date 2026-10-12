@@ -20,8 +20,12 @@ button.p{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
 button:disabled{opacity:.4;cursor:not-allowed}
 button.sel{border-color:var(--ac);color:var(--ac);font-weight:600}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bd);border-radius:10px;padding:2px 8px 2px 10px}
+.chip.act{border-color:var(--ac);background:rgba(194,65,12,.08)}
+.chip button{border:0;background:none;padding:6px 2px;font-weight:600}
+.chip.act button{color:var(--ac)}
 textarea{width:100%;min-height:80px;font:inherit;font-size:.85rem;padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--fg)}
-.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;margin-top:12px;max-height:200px;overflow-y:auto}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;margin-top:12px;max-height:220px;overflow-y:auto}
 .thumbs div{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--bd)}
 .thumbs img{width:100%;height:100%;object-fit:cover}
 .thumbs b{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.65);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;line-height:18px;text-align:center;cursor:pointer}
@@ -40,10 +44,22 @@ ol{padding-left:20px;margin:8px 0 0}
 <body>
 <div class="wrap" id="setup">
   <h1>Prática de Desenho</h1>
-  <div class="mut">Poses cronometradas com as suas próprias referências.</div>
+  <div class="mut">Poses cronometradas com as suas próprias referências, separadas por pastas.</div>
 
   <div class="card">
-    <b>1. Pegar imagens de um board do Pinterest</b>
+    <b>Pastas</b>
+    <div class="mut">Clique no nome para escolher a pasta ativa. A caixinha marca quais pastas entram na sessão.</div>
+    <div class="row" id="fols"></div>
+    <div class="row">
+      <button id="nf" class="p">+ Nova pasta</button>
+      <button id="rn">Renomear</button>
+      <button id="dl">Excluir</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>Adicionar na pasta: <span id="act" style="color:var(--ac)"></span></b>
+    <div class="mut" style="margin-top:10px">Pelo Pinterest:</div>
     <ol class="mut">
       <li>Arraste este botão para a barra de favoritos (no computador): <a class="btn" id="bm" href="#">📌 Pegar do Pinterest</a></li>
       <li>Abra o board no Pinterest e clique no favorito. Vai aparecer um botão laranja no canto da tela.</li>
@@ -52,22 +68,19 @@ ol{padding-left:20px;margin:8px 0 0}
     </ol>
     <div class="row"><textarea id="ta" placeholder="Cole aqui os links das imagens (um por linha)"></textarea></div>
     <div class="row"><button id="bl" class="p">Adicionar links</button></div>
-  </div>
-
-  <div class="card">
-    <b>2. Ou use arquivos do seu computador</b>
-    <div class="drop" id="drop" style="margin-top:10px">
+    <div class="mut" style="margin-top:16px">Ou com arquivos do computador (não ficam salvos):</div>
+    <div class="drop" id="drop" style="margin-top:8px">
       <div>Solte imagens aqui ou clique para escolher</div>
-      <div class="mut" style="margin-top:6px">Também dá para colar com Ctrl+V. Arquivos locais não ficam salvos.</div>
+      <div class="mut" style="margin-top:6px">Também dá para colar com Ctrl+V.</div>
     </div>
     <input type="file" id="f" accept="image/*" multiple hidden>
-    <input type="file" id="fd" webkitdirectory hidden>
-    <div class="row"><button id="bf">Escolher arquivos</button><button id="bd">Escolher pasta</button></div>
+    <input type="file" id="fdir" webkitdirectory hidden>
+    <div class="row"><button id="bf">Escolher arquivos</button><button id="bdir">Escolher pasta do computador</button></div>
   </div>
 
   <div class="card">
-    <div class="row" style="margin-top:0"><b id="cnt">0 imagens</b><button id="bc">Limpar tudo</button></div>
-    <div class="mut">Os links do Pinterest ficam salvos neste navegador.</div>
+    <div class="row" style="margin-top:0"><b id="cnt"></b><button id="bc">Esvaziar esta pasta</button></div>
+    <div class="mut">Os links ficam salvos neste navegador.</div>
     <div class="thumbs" id="th"></div>
   </div>
 
@@ -101,8 +114,8 @@ ol{padding-left:20px;margin:8px 0 0}
 </div>
 
 <script>
-var KEY='pratica-desenho-links';
-var imgs=[],dur=60,order=[],idx=0,endAt=0,left=0,paused=false,tick=null,fails=0;
+var KEY='pratica-desenho-v2',OLD='pratica-desenho-links';
+var D={folders:[],active:null},pool=[],dur=60,order=[],idx=0,endAt=0,left=0,paused=false,tick=null,fails=0;
 var $=function(i){return document.getElementById(i)};
 
 function bm(){
@@ -125,23 +138,46 @@ var TIMES=[[30,'30s'],[60,'1 min'],[120,'2 min'],[300,'5 min'],[600,'10 min'],[0
 TIMES.forEach(function(t){var b=document.createElement('button');b.textContent=t[1];b.onclick=function(){sel(b,t[0])};if(t[0]===60){b.className='sel'}$('times').appendChild(b)});
 function sel(b,v){[].forEach.call($('times').children,function(x){x.className=''});b.className='sel';dur=v||0}
 
-function save(){try{localStorage.setItem(KEY,JSON.stringify(imgs.filter(function(u){return u.indexOf('http')===0})))}catch(e){}}
-function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(s))imgs=s}catch(e){}}
-function add(u){if(imgs.indexOf(u)<0)imgs.push(u)}
+function uid(){return 'f'+Date.now().toString(36)+Math.floor(Math.random()*1e4)}
+function mk(name,imgs){return {id:uid(),name:name,imgs:imgs||[],on:true}}
+function cur(){for(var i=0;i<D.folders.length;i++){if(D.folders[i].id===D.active)return D.folders[i]}return D.folders[0]}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({active:D.active,folders:D.folders.map(function(f){return {id:f.id,name:f.name,on:f.on,imgs:f.imgs.filter(function(u){return u.indexOf('http')===0})}})}))}catch(e){}}
+function load(){
+  try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.folders)&&s.folders.length){D=s;return}}catch(e){}
+  try{var o=JSON.parse(localStorage.getItem(OLD)||'[]');if(Array.isArray(o)&&o.length){var g=mk('Geral',o);D={folders:[g],active:g.id};return}}catch(e){}
+  var f=mk('Minha pasta');D={folders:[f],active:f.id};
+}
+function getPool(){var s=[];D.folders.forEach(function(f){if(f.on)f.imgs.forEach(function(u){if(s.indexOf(u)<0)s.push(u)})});return s}
+function add(u){var f=cur();if(f.imgs.indexOf(u)<0)f.imgs.push(u)}
 function addFiles(fs){[].forEach.call(fs,function(f){if(f.type.indexOf('image/')===0)add(URL.createObjectURL(f))});render()}
+
 function render(){
-  $('cnt').textContent=imgs.length+(imgs.length===1?' imagem':' imagens');$('go').disabled=!imgs.length;
+  var a=cur();D.active=a.id;
+  $('fols').innerHTML='';
+  D.folders.forEach(function(f){
+    var d=document.createElement('div');d.className='chip'+(f.id===a.id?' act':'');
+    var c=document.createElement('input');c.type='checkbox';c.checked=f.on;c.title='Incluir na sessão';c.onchange=function(){f.on=c.checked;render()};
+    var b=document.createElement('button');b.textContent=f.name+' ('+f.imgs.length+')';b.onclick=function(){D.active=f.id;render()};
+    d.appendChild(c);d.appendChild(b);$('fols').appendChild(d);
+  });
+  $('act').textContent=a.name;
+  $('cnt').textContent=a.name+': '+a.imgs.length+(a.imgs.length===1?' imagem':' imagens');
+  $('dl').disabled=D.folders.length<2;
   $('th').innerHTML='';
-  imgs.forEach(function(u,i){var d=document.createElement('div');var im=document.createElement('img');im.referrerPolicy='no-referrer';im.loading='lazy';im.src=u;
-    var x=document.createElement('b');x.textContent='×';x.onclick=function(){imgs.splice(i,1);render()};d.appendChild(im);d.appendChild(x);$('th').appendChild(d)});
+  a.imgs.forEach(function(u,i){var d=document.createElement('div');var im=document.createElement('img');im.referrerPolicy='no-referrer';im.loading='lazy';im.src=u;
+    var x=document.createElement('b');x.textContent='×';x.onclick=function(){a.imgs.splice(i,1);render()};d.appendChild(im);d.appendChild(x);$('th').appendChild(d)});
+  var n=getPool().length;$('go').disabled=!n;$('go').textContent=n?'Começar ('+n+(n===1?' imagem)':' imagens)'):'Começar';
   save();
 }
+$('nf').onclick=function(){var n=prompt('Nome da nova pasta (ex.: Rostos, Elefantes, Prédios):');if(n&&n.trim()){var f=mk(n.trim());D.folders.push(f);D.active=f.id;render()}};
+$('rn').onclick=function(){var a=cur();var n=prompt('Novo nome da pasta:',a.name);if(n&&n.trim()){a.name=n.trim();render()}};
+$('dl').onclick=function(){var a=cur();if(D.folders.length>1&&confirm('Excluir a pasta "'+a.name+'" e as '+a.imgs.length+' imagens dela?')){D.folders=D.folders.filter(function(f){return f.id!==a.id});D.active=D.folders[0].id;render()}};
 $('bl').onclick=function(){var m=$('ta').value.match(/https?:\/\/[^\s"'<>]+/g)||[];m.forEach(add);$('ta').value='';render()};
 $('drop').onclick=$('bf').onclick=function(){$('f').click()};
-$('bd').onclick=function(){$('fd').click()};
+$('bdir').onclick=function(){$('fdir').click()};
 $('f').onchange=function(e){addFiles(e.target.files);e.target.value=''};
-$('fd').onchange=function(e){addFiles(e.target.files);e.target.value=''};
-$('bc').onclick=function(){imgs=[];render()};
+$('fdir').onchange=function(e){addFiles(e.target.files);e.target.value=''};
+$('bc').onclick=function(){var a=cur();if(!a.imgs.length||confirm('Esvaziar a pasta "'+a.name+'"?')){a.imgs=[];render()}};
 ['dragenter','dragover'].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault();$('drop').classList.add('on')})});
 ['dragleave','drop'].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault();$('drop').classList.remove('on')})});
 document.addEventListener('drop',function(e){if(e.dataTransfer&&e.dataTransfer.files.length)addFiles(e.dataTransfer.files)});
@@ -149,18 +185,19 @@ document.addEventListener('paste',function(e){if(document.activeElement===$('ta'
 
 function fmt(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2)}
 function apply(){$('im').style.filter=$('gr').checked?'grayscale(1)':'';$('im').style.transform=$('fl').checked?'scaleX(-1)':'none';$('grid').style.display=$('gd').checked?'block':'none'}
-function show(){$('im').src=imgs[order[idx]];left=dur;endAt=Date.now()+dur*1000;$('fill').style.width='100%';$('tm').textContent=fmt(dur);apply()}
+function show(){$('im').src=pool[order[idx]];left=dur;endAt=Date.now()+dur*1000;$('fill').style.width='100%';$('tm').textContent=fmt(dur);apply()}
 $('im').onload=function(){fails=0};
 $('im').onerror=function(){fails++;if(fails<5)go(1);else{alert('Não consegui carregar as imagens. Os links podem ter expirado.');stop()}};
 function loop(){if(paused)return;left=(endAt-Date.now())/1000;$('tm').textContent=fmt(left);$('fill').style.width=Math.max(0,left/dur*100)+'%';if(left<=0)go(1)}
 function go(n){var j=idx+n;if(j<0)return;if(j>=order.length){stop();return}idx=j;paused=false;$('pa').textContent='Pausar';show()}
 function start(){
+  pool=getPool();if(!pool.length)return;
   if(!dur)dur=Math.max(5,+$('cu').value||90);
-  order=imgs.map(function(_,i){return i});
+  order=pool.map(function(_,i){return i});
   if($('sh').checked){for(var i=order.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=order[i];order[i]=order[j];order[j]=t}}
   idx=0;fails=0;paused=false;$('setup').style.display='none';$('sess').style.display='flex';show();tick=setInterval(loop,200);
 }
-function stop(){clearInterval(tick);$('sess').style.display='none';$('setup').style.display='block';dur=dur;}
+function stop(){clearInterval(tick);$('sess').style.display='none';$('setup').style.display='block'}
 $('go').onclick=start;$('en').onclick=stop;$('nx').onclick=function(){go(1)};$('pv').onclick=function(){go(-1)};
 $('pa').onclick=function(){if(paused){paused=false;endAt=Date.now()+left*1000;$('pa').textContent='Pausar'}else{paused=true;$('pa').textContent='Continuar'}};
 $('gg').onclick=function(){$('gd').checked=!$('gd').checked;apply()};
