@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prática de Desenho</title>
+<style>
+:root{--bg:#f6f4ef;--fg:#1d1d1b;--mut:#6b6a66;--card:#fff;--bd:#d9d6cd;--ac:#c2410c}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#eeece6;--mut:#9a988f;--card:#222220;--bd:#383835;--ac:#fb923c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+h1{font-size:1.5rem;margin:0 0 4px}
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px}
+.mut{color:var(--mut);font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-top:16px}
+.drop{border:2px dashed var(--bd);border-radius:12px;padding:22px 16px;text-align:center;cursor:pointer}
+.drop.on{border-color:var(--ac)}
+button,.btn{font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;cursor:pointer;text-decoration:none;display:inline-block}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.sel{border-color:var(--ac);color:var(--ac);font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+textarea{width:100%;min-height:80px;font:inherit;font-size:.85rem;padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--fg)}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;margin-top:12px;max-height:200px;overflow-y:auto}
+.thumbs div{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--bd)}
+.thumbs img{width:100%;height:100%;object-fit:cover}
+.thumbs b{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.65);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;line-height:18px;text-align:center;cursor:pointer}
+label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+ol{padding-left:20px;margin:8px 0 0}
+#sess{position:fixed;inset:0;background:#111;color:#eee;display:none;flex-direction:column;z-index:9}
+#stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+#stage img{max-width:100%;max-height:100%;object-fit:contain}
+#grid{position:absolute;inset:0;pointer-events:none;display:none;background-image:linear-gradient(rgba(255,255,255,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.35) 1px,transparent 1px);background-size:33.333% 33.333%}
+#bar{height:5px;background:#333}#bar i{display:block;height:100%;background:#fb923c;width:100%}
+#ctl{display:flex;gap:8px;justify-content:center;align-items:center;padding:10px;flex-wrap:wrap}
+#ctl button{background:#222;color:#eee;border-color:#444}
+#tm{font-variant-numeric:tabular-nums;font-size:1.3rem;min-width:70px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap" id="setup">
+  <h1>Prática de Desenho</h1>
+  <div class="mut">Poses cronometradas com as suas próprias referências.</div>
+
+  <div class="card">
+    <b>1. Pegar imagens de um board do Pinterest</b>
+    <ol class="mut">
+      <li>Arraste este botão para a barra de favoritos (no computador): <a class="btn" id="bm" href="#">📌 Pegar do Pinterest</a></li>
+      <li>Abra o board no Pinterest e clique no favorito. Vai aparecer um botão laranja no canto da tela.</li>
+      <li>Role o board até o fim (o contador sobe) e clique no botão laranja para copiar os links.</li>
+      <li>Volte aqui e cole abaixo.</li>
+    </ol>
+    <div class="row"><textarea id="ta" placeholder="Cole aqui os links das imagens (um por linha)"></textarea></div>
+    <div class="row"><button id="bl" class="p">Adicionar links</button></div>
+  </div>
+
+  <div class="card">
+    <b>2. Ou use arquivos do seu computador</b>
+    <div class="drop" id="drop" style="margin-top:10px">
+      <div>Solte imagens aqui ou clique para escolher</div>
+      <div class="mut" style="margin-top:6px">Também dá para colar com Ctrl+V. Arquivos locais não ficam salvos.</div>
+    </div>
+    <input type="file" id="f" accept="image/*" multiple hidden>
+    <input type="file" id="fd" webkitdirectory hidden>
+    <div class="row"><button id="bf">Escolher arquivos</button><button id="bd">Escolher pasta</button></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="margin-top:0"><b id="cnt">0 imagens</b><button id="bc">Limpar tudo</button></div>
+    <div class="mut">Os links do Pinterest ficam salvos neste navegador.</div>
+    <div class="thumbs" id="th"></div>
+  </div>
+
+  <div class="card">
+    <b>Tempo por imagem</b>
+    <div class="row" id="times"></div>
+    <div class="row"><label>Personalizado (segundos): <input type="number" id="cu" min="5" value="90" style="width:80px;font:inherit;padding:6px"></label></div>
+    <div class="row" style="margin-top:16px">
+      <label><input type="checkbox" id="sh" checked> Embaralhar</label>
+      <label><input type="checkbox" id="gr"> Tons de cinza</label>
+      <label><input type="checkbox" id="gd"> Grade</label>
+      <label><input type="checkbox" id="fl"> Espelhar</label>
+    </div>
+  </div>
+  <div class="row" style="margin-top:20px"><button class="p" id="go" disabled>Começar</button></div>
+</div>
+
+<div id="sess">
+  <div id="bar"><i id="fill"></i></div>
+  <div id="stage"><img id="im" alt="" referrerpolicy="no-referrer"><div id="grid"></div></div>
+  <div id="ctl">
+    <button id="pv">◀</button>
+    <button id="pa">Pausar</button>
+    <span id="tm">0:00</span>
+    <button id="nx">▶</button>
+    <button id="gg">Grade</button>
+    <button id="gy">Cinza</button>
+    <button id="ff">Espelhar</button>
+    <button id="en">Encerrar</button>
+  </div>
+</div>
+
+<script>
+var KEY='pratica-desenho-links';
+var imgs=[],dur=60,order=[],idx=0,endAt=0,left=0,paused=false,tick=null,fails=0;
+var $=function(i){return document.getElementById(i)};
+
+function bm(){
+  if(window.__pq){return}
+  var S={};window.__pq=1;
+  function up(u){return u.replace(/\/(236x|474x|564x|736x)\//,'/736x/')}
+  function scan(){document.querySelectorAll('img').forEach(function(i){var u=i.currentSrc||i.src;if(u&&u.indexOf('i.pinimg.com')>-1&&/\/(236x|474x|564x|736x|originals)\//.test(u)){S[up(u)]=1}})}
+  var b=document.createElement('button');
+  b.style.cssText='position:fixed;z-index:999999;top:12px;right:12px;padding:12px 16px;font:600 15px sans-serif;background:#c2410c;color:#fff;border:0;border-radius:8px;cursor:pointer';
+  function upd(){scan();b.textContent='Copiar '+Object.keys(S).length+' imagens'}
+  setInterval(upd,700);upd();
+  b.onclick=function(){scan();var t=Object.keys(S).join('\n');
+    navigator.clipboard.writeText(t).then(function(){b.textContent='Copiado! Cole no site'},function(){prompt('Copie os links:',t)})};
+  document.body.appendChild(b);
+}
+$('bm').href='javascript:'+encodeURIComponent('('+bm.toString()+')()');
+$('bm').onclick=function(e){e.preventDefault();alert('Arraste este botão para a barra de favoritos.')};
+
+var TIMES=[[30,'30s'],[60,'1 min'],[120,'2 min'],[300,'5 min'],[600,'10 min'],[0,'Personalizado']];
+TIMES.forEach(function(t){var b=document.createElement('button');b.textContent=t[1];b.onclick=function(){sel(b,t[0])};if(t[0]===60){b.className='sel'}$('times').appendChild(b)});
+function sel(b,v){[].forEach.call($('times').children,function(x){x.className=''});b.className='sel';dur=v||0}
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify(imgs.filter(function(u){return u.indexOf('http')===0})))}catch(e){}}
+function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(s))imgs=s}catch(e){}}
+function add(u){if(imgs.indexOf(u)<0)imgs.push(u)}
+function addFiles(fs){[].forEach.call(fs,function(f){if(f.type.indexOf('image/')===0)add(URL.createObjectURL(f))});render()}
+function render(){
+  $('cnt').textContent=imgs.length+(imgs.length===1?' imagem':' imagens');$('go').disabled=!imgs.length;
+  $('th').innerHTML='';
+  imgs.forEach(function(u,i){var d=document.createElement('div');var im=document.createElement('img');im.referrerPolicy='no-referrer';im.loading='lazy';im.src=u;
+    var x=document.createElement('b');x.textContent='×';x.onclick=function(){imgs.splice(i,1);render()};d.appendChild(im);d.appendChild(x);$('th').appendChild(d)});
+  save();
+}
+$('bl').onclick=function(){var m=$('ta').value.match(/https?:\/\/[^\s"'<>]+/g)||[];m.forEach(add);$('ta').value='';render()};
+$('drop').onclick=$('bf').onclick=function(){$('f').click()};
+$('bd').onclick=function(){$('fd').click()};
+$('f').onchange=function(e){addFiles(e.target.files);e.target.value=''};
+$('fd').onchange=function(e){addFiles(e.target.files);e.target.value=''};
+$('bc').onclick=function(){imgs=[];render()};
+['dragenter','dragover'].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault();$('drop').classList.add('on')})});
+['dragleave','drop'].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault();$('drop').classList.remove('on')})});
+document.addEventListener('drop',function(e){if(e.dataTransfer&&e.dataTransfer.files.length)addFiles(e.dataTransfer.files)});
+document.addEventListener('paste',function(e){if(document.activeElement===$('ta'))return;var it=e.clipboardData&&e.clipboardData.files;if(it&&it.length)addFiles(it)});
+
+function fmt(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2)}
+function apply(){$('im').style.filter=$('gr').checked?'grayscale(1)':'';$('im').style.transform=$('fl').checked?'scaleX(-1)':'none';$('grid').style.display=$('gd').checked?'block':'none'}
+function show(){$('im').src=imgs[order[idx]];left=dur;endAt=Date.now()+dur*1000;$('fill').style.width='100%';$('tm').textContent=fmt(dur);apply()}
+$('im').onload=function(){fails=0};
+$('im').onerror=function(){fails++;if(fails<5)go(1);else{alert('Não consegui carregar as imagens. Os links podem ter expirado.');stop()}};
+function loop(){if(paused)return;left=(endAt-Date.now())/1000;$('tm').textContent=fmt(left);$('fill').style.width=Math.max(0,left/dur*100)+'%';if(left<=0)go(1)}
+function go(n){var j=idx+n;if(j<0)return;if(j>=order.length){stop();return}idx=j;paused=false;$('pa').textContent='Pausar';show()}
+function start(){
+  if(!dur)dur=Math.max(5,+$('cu').value||90);
+  order=imgs.map(function(_,i){return i});
+  if($('sh').checked){for(var i=order.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=order[i];order[i]=order[j];order[j]=t}}
+  idx=0;fails=0;paused=false;$('setup').style.display='none';$('sess').style.display='flex';show();tick=setInterval(loop,200);
+}
+function stop(){clearInterval(tick);$('sess').style.display='none';$('setup').style.display='block';dur=dur;}
+$('go').onclick=start;$('en').onclick=stop;$('nx').onclick=function(){go(1)};$('pv').onclick=function(){go(-1)};
+$('pa').onclick=function(){if(paused){paused=false;endAt=Date.now()+left*1000;$('pa').textContent='Pausar'}else{paused=true;$('pa').textContent='Continuar'}};
+$('gg').onclick=function(){$('gd').checked=!$('gd').checked;apply()};
+$('gy').onclick=function(){$('gr').checked=!$('gr').checked;apply()};
+$('ff').onclick=function(){$('fl').checked=!$('fl').checked;apply()};
+document.addEventListener('keydown',function(e){if($('sess').style.display!=='flex')return;
+  if(e.key==='ArrowRight')go(1);else if(e.key==='ArrowLeft')go(-1);else if(e.key===' '){e.preventDefault();$('pa').click()}else if(e.key==='Escape')stop()});
+load();render();
+</script>
+</body>
+</html>
